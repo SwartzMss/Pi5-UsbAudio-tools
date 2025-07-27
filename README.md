@@ -61,6 +61,36 @@ mixer.setvolume(80)  # 设置到 80%
 
 若希望交互式调整，也可以在终端中运行 `alsamixer` 打开图形界面。
 
+### 示例：调节 USB 声卡音量
+
+以下步骤展示如何在确认声卡编号后，查看控制项并设置音量。假设 `aplay -l` 显示 USB 声卡为 `card 2`：
+
+```bash
+$ aplay -l
+**** List of PLAYBACK Hardware Devices ****
+card 0: vc4hdmi0 [vc4-hdmi-0], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]
+...
+card 2: Audio [KT USB Audio], device 0: USB Audio [USB Audio]
+```
+
+查看可用的控制项名称：
+
+```bash
+amixer -c 2 scontrols
+```
+
+若输出如 `Simple mixer control 'Headphone',0`，即可进一步查询当前音量：
+
+```bash
+amixer -c 2 sget Headphone
+```
+
+调整音量时直接设置百分比，例如将其提高到 90%：
+
+```bash
+amixer -c 2 sset Headphone 90%
+```
+
 ## 常见问题
 
 1. **无声音输出**：确认声卡被正确识别并且未被其他应用占用。
