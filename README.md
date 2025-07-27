@@ -1,12 +1,12 @@
 # Pi5-UsbAudio-tools
 
-本仓库提供在 Raspberry Pi 5 上使用 USB 声卡的一些常用说明与脚本示例，
-方便在启用或调试外接声卡时进行参考。
+本项目提供在 Raspberry Pi 5 上使用 USB 声卡的调试指南与脚本示例，适用于音频输出测试、音量控制及默认声卡设置等场景。
 
+---
 
-## 检查设备识别情况
+## 📌 设备识别与确认
 
-将 USB 声卡插入后，可通过以下命令确认系统是否识别到设备：
+插入 USB 声卡后，可使用以下命令确认系统是否识别设备：
 
 ```bash
 lsusb
@@ -17,86 +17,122 @@ aplay -l
 
 ```bash
 $ lsusb
-Bus 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
-Bus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
-Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
 Bus 001 Device 002: ID 12d1:0010 Huawei Technologies Co., Ltd. KT USB Audio
-Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
 
 $ aplay -l
-**** List of PLAYBACK Hardware Devices ****
-xcb_connection_has_error() returned true
-card 0: vc4hdmi0 [vc4-hdmi-0], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]
-  Subdevices: 1/1
-  Subdevice #0: subdevice #0
-card 1: vc4hdmi1 [vc4-hdmi-1], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]
-  Subdevices: 1/1
-  Subdevice #0: subdevice #0
-card 2: Audio [KT USB Audio], device 0: USB Audio [USB Audio]
-  Subdevices: 1/1
-  Subdevice #0: subdevice #0
-```
-
-若在输出结果中看到了声卡相关信息，说明设备已被系统检测到。
-
-## 调整音量
-
-在纯命令行环境下可以使用 `amixer` 控制音量。例如查看或设置第一张声卡的输出：
-
-```bash
-# 查看音量
-amixer -c 1 sget Master
-# 将音量设置为 80%
-amixer -c 1 sset Master 80%
-```
-
-如果需要在脚本中控制音量，可使用 `pyalsaaudio` 等 Python 库：
-
-```python
-import alsaaudio
-
-mixer = alsaaudio.Mixer(control="Master", cardindex=1)
-mixer.setvolume(80)  # 设置到 80%
-```
-
-若希望交互式调整，也可以在终端中运行 `alsamixer` 打开图形界面。
-
-### 示例：调节 USB 声卡音量
-
-以下步骤展示如何在确认声卡编号后，查看控制项并设置音量。假设 `aplay -l` 显示 USB 声卡为 `card 2`：
-
-```bash
-$ aplay -l
-**** List of PLAYBACK Hardware Devices ****
-card 0: vc4hdmi0 [vc4-hdmi-0], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]
-...
 card 2: Audio [KT USB Audio], device 0: USB Audio [USB Audio]
 ```
 
-查看可用的控制项名称：
+若 `aplay -l` 中出现带有 `USB Audio` 字样的设备，说明声卡已被正确识别。
+
+---
+
+## 🎚 音量控制
+
+### 查看控制项
+
+确认声卡编号（如 `card 2`），列出可调节项：
 
 ```bash
 amixer -c 2 scontrols
 ```
 
-若输出如 `Simple mixer control 'Headphone',0`，即可进一步查询当前音量：
+输出示例：
+
+```
+Simple mixer control 'Headphone',0
+```
+
+### 获取当前音量状态
 
 ```bash
 amixer -c 2 sget Headphone
 ```
 
-调整音量时直接设置百分比，例如将其提高到 90%：
+示例输出：
 
-```bash
-amixer -c 2 sset Headphone 90%
+```
+Front Left: Playback 58 [58%] [-21.00dB] [on]
+Front Right: Playback 58 [58%] [-21.00dB] [on]
 ```
 
-## 常见问题
+### 设置音量
 
-1. **无声音输出**：确认声卡被正确识别并且未被其他应用占用。
-2. **系统开机没有自动设置默认卡**：检查 `~/.asoundrc` 的语法是否正确。
-3. **录音设备不可用**：在 `alsamixer` 中查看麦克风输入是否被静音。
+```bash
+amixer -c 2 sset Headphone 90% unmute
+```
 
-## 版权信息
+你也可以使用交互式工具：
 
-本项目使用 MIT 许可证，详情请查看 LICENSE 文件。
+```bash
+alsamixer -c 2
+```
+
+---
+
+## 🧪 音频播放测试
+
+建议使用 `mpg123` 播放音频进行验证：
+
+```bash
+sudo apt install mpg123
+mpg123 -a hw:2,0 test.mp3
+```
+
+确保声音从 USB 声卡输出。
+
+---
+
+## ⚙ 设置默认声卡（可选）
+
+如需将 USB 声卡设为默认输出设备：
+
+### 系统范围（全局）
+
+编辑 `/etc/asound.conf`：
+
+```conf
+defaults.pcm.card 2
+defaults.ctl.card 2
+```
+
+### 用户范围（当前用户）
+
+编辑 `~/.asoundrc` 内容相同：
+
+```conf
+defaults.pcm.card 2
+defaults.ctl.card 2
+```
+
+修改后可注销或重启使其生效。
+
+---
+
+## 🐍 Python 控制示例（可选）
+
+可使用 `pyalsaaudio` 调节音量：
+
+```python
+import alsaaudio
+
+mixer = alsaaudio.Mixer(control="Headphone", cardindex=2)
+mixer.setvolume(80)  # 设置音量为 80%
+```
+
+---
+
+## ❗常见问题排查
+
+| 问题                         | 建议解决方案                                       |
+|------------------------------|----------------------------------------------------|
+| 无声音输出                  | 确保设备未被其他程序占用，且音量未静音             |
+| 没有音量控制项              | 某些声卡仅支持固定音量或不支持 `Master/PCM` 控制  |
+| 声卡不在默认输出中          | 配置 `.asoundrc` 或使用 `-a hw:X,0` 手动指定播放  |
+| alsamixer 进入空白界面      | 使用正确的 `-c` 参数（声卡编号）                  |
+
+---
+
+## 📄 License
+
+本项目使用 [MIT License](LICENSE) 开源协议。
